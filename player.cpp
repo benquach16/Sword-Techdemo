@@ -93,15 +93,35 @@ void CPlayer::run(f32 frameDeltaTime)
 		swing_force = 10;
 		timer = graphics->getTimer()->getTime()+500;
 	}
+	if(getStaminaTime() < graphics->getTimer()->getTime())
+	{
+		if(getStamina() < 100)
+		{
+			setStamina(getStamina()+1);
+			setStaminaTime(graphics->getTimer()->getTime()+50);
+		}
+	}
 	updateFingerPosition();
 	updateHeadPosition();
 
+	//name position for multiplayer
 	model->getJointNode("Bip001")->updateAbsolutePositionOfAllChildren();
 	vector3df tmp = getPosition();
 	tmp.Y += 80;
 	vector2d<s32> name_pos = graphics->getSceneManager()->getSceneCollisionManager()->getScreenCoordinatesFrom3DPosition(tmp,graphics->getSceneManager()->getActiveCamera());
 	name_pos.X-=50;
 	player_name->setRelativePosition(name_pos);
+
+
+	//test function for swing inertia
+	if(getSlashLeft())
+	{
+
+	}
+	if(getSlashRight())
+	{
+
+	}
 
 	if(getHealth() < 1)
 	{
@@ -142,8 +162,9 @@ void CPlayer::rotateFacingY(float y)
 	vector3df rot = getRotation();
 
 	rot.Y += y;
-	swing_force+=abs(y);
+	//swing_force+=abs(y);
 	this->setRotation(rot);
+
 }
 
 

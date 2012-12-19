@@ -65,10 +65,13 @@ graphics(graphics), sound(sound), world(world), keylistener(keylistener), curren
 	room = graphics->getSceneManager()->addAnimatedMeshSceneNode(graphics->getSceneManager()->getMesh("res/models/room.x"));
 
 	room->setScale(vector3df(0.2,0.2,0.2));
+	room->setMaterialFlag(video::EMF_NORMALIZE_NORMALS,true);
+	room->getMaterial(0).SpecularColor.set(0,0,0,0);
 	room_object->mesh = room;
 	room_coll = createNCollisionMesh(world, room->getMesh());	
 	room_object->coll = room_coll;
 	room_body = NewtonCreateBody(world,room_coll,(float*)&room->getAbsoluteTransformation());
+
 	float boxP0[3]; 
 	float boxP1[3]; 
 	float matrix[4][4]; 
@@ -86,12 +89,15 @@ graphics(graphics), sound(sound), world(world), keylistener(keylistener), curren
 	//setup misc
 	p_cam = graphics->getSceneManager()->addCameraSceneNode();
 	p_cam->bindTargetAndRotation(true);
-	//p_cam->setFOV(1);
+	int degree = 90;
+	float rad = degree * 3.14 / 180;
+	p_cam->setFOV(rad);
 	p_cam->setFarValue(40000);
 
 	graphics->getCursorControl()->setPosition(0.5f,0.5f);
-	graphics->getSceneManager()->setAmbientLight(SColor(64,64,64,64));
-
+	graphics->getSceneManager()->addLightSceneNode(0,vector3df(0,150,0), SColor(255,255,255,255), 200);
+	graphics->getSceneManager()->setAmbientLight(SColor(74,74,74,74));
+	graphics->getSceneManager()->setShadowColor();
 
 	if(singleplayer==true)
 		singleplayerSetup();
@@ -143,6 +149,8 @@ void CGameloop::loadData(Packet *p)
 	in.Read(slash_top);
 	int swing_force;
 	in.Read(swing_force);
+	bool under_block;
+	in.Read(under_block);
 	if(client == 0)
 	{
 
@@ -158,6 +166,7 @@ void CGameloop::loadData(Packet *p)
 		client->setSlashRight(slash_right);
 		client->setSlashTop(slash_top);
 		client->setSwingForce(swing_force);
+		client->setUnderBlock(under_block);
 		//client->setVisible(true);
 	}
 	
@@ -186,6 +195,7 @@ void CGameloop::sendPlayerData(RakNet::SystemAddress address)
 	bit.Write(player->getSlashRight());
 	bit.Write(player->getSlashTop());
 	bit.Write(player->getSwingForce());
+	bit.Write(player->getUnderBlock());
 	current_machine->Send(&bit, HIGH_PRIORITY, RELIABLE_ORDERED, 0, address, false);
 }
 
@@ -441,7 +451,6 @@ void CGameloop::playerControl(f32 frameDeltaTime)
 {
 	//control player
 
-
 	//movement
 	//key inputs go here
 	if(keylistener->IsKeyDown(irr::KEY_KEY_W))
@@ -461,7 +470,8 @@ void CGameloop::playerControl(f32 frameDeltaTime)
 		player->moveRight(frameDeltaTime);
 	}
 
-	//attacking
+	//attacking/
+	/*
 	if(keylistener->IsMouseButtonDown(MOUSE_RIGHT))
 	{
 		player->setSlashRight(true);
@@ -486,6 +496,46 @@ void CGameloop::playerControl(f32 frameDeltaTime)
 	{
 		player->setSlashTop(false);
 	}
+	*/
+
+	//new attack system goes here
+	if(keylistener->IsMouseButtonDown(MOUSE_LEFT))
+	{
+		//wherever the mouse is, decides if the player attacks from left or right
+		if(!player->getSlashLeft() && !player->getSlashRight() && !player->getSlashTop() && !player->getUnderBlock())
+		{
+			if(player->getRShoulderRotation().Y < 330 && player->getRShoulderRotation().Y > 180)
+			{
+				player->setSlashTop(true);
+			}
+			else
+			{
+				if(player->getRShoulderRotation().Z > 280)
+				{
+					player->setSlashRight(true);
+				}
+				else if(player->getRShoulderRotation().Z < 280)
+				{
+					player->setSlashLeft(true);
+				}
+			}
+		}
+	}
+	else
+	{
+		player->setSlashLeft(false);
+		player->setSlashRight(false);
+		player->setSlashTop(false);
+	}
+	if(keylistener->IsMouseButtonDown(MOUSE_RIGHT))
+	{
+		player->setUnderBlock(true);
+	}
+	else
+	{
+		player->setUnderBlock(false);
+	}
+
 	if(keylistener->IsKeyDown(irr::KEY_ESCAPE))
 	{
 		RakNet::BitStream bit;
@@ -511,7 +561,7 @@ void CGameloop::playerControl(f32 frameDeltaTime)
 	{
 		float t=keylistener->mouseY()-tMouseY;
 		//if(player->getRShoulderRotation().Y < 50)
-			player->rotateFacingX(t);
+			 player->rotateFacingX(t);
 		tMouseY=keylistener->mouseY();
 		if(player->getSwingForce() > 1)
 			player->rotateRArmY(t);
@@ -538,9 +588,7 @@ void CGameloop::cameraControl()
 	
 	vector3df head_pos = player->getPosition();
 	head_pos.Y+=69;
-
 	p_cam->setPosition(head_pos);
-
 
 	
 	//p_cam->setPosition(player->getHeadBone()->getAbsolutePosition()+vector3df(0,4,0));

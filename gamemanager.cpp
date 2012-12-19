@@ -36,28 +36,35 @@ void CGameManager::run(f32 frameDeltaTime)
 		person->run(frameDeltaTime);
 		if(person->getHealth() > 0)
 		{
-			if(person->getSlashRight())
+			if(person->getUnderBlock())
 			{
-				person->slashRight();
+				person->underBlock();
 			}
 			else
 			{
-				if(person->getSlashLeft())
+				if(person->getSlashRight())
 				{
-					person->slashLeft();
+					person->slashRight();
 				}
-
 				else
 				{
-					if(person->getSlashTop())
+					if(person->getSlashLeft())
 					{
-
-						person->slashTop();
+						person->slashLeft();
 					}
+
 					else
 					{
-						//reset bones
-						person->resetRotations();
+						if(person->getSlashTop())
+						{
+
+							person->slashTop();
+						}
+						else
+						{
+							//reset bones
+							person->resetRotations();
+						}
 					}
 				}
 			}

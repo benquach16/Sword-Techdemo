@@ -22,20 +22,28 @@
 #include "person.h"
 
 //temp constant
-int SLASH_TIME = 2000;
+const int SLASH_TIME = 2000;
+
+#define MAX_STAMINA 100
 
 CPerson::CPerson(irr::IrrlichtDevice *graphics, NewtonWorld *world, vector3df &pos, vector3df &rot, bool isplayer): 
-graphics(graphics), world(world), slashRight_(false), slashLeft_(false), slashTop_(false), attacked_already(false),
+graphics(graphics), world(world), 
+	slashRight_(false), slashLeft_(false), slashTop_(false), underBlock_(false),
+	attacked_already(false),
 	isplayer_(isplayer), state_(STATE_RUN), left_leg(false), right_leg(false)
 {
 	//initializer
-	swing_force = 80;
-	state_ = STATE_RUN;
-	timer = graphics->getTimer()->getTime()+1000;
-	attack_timer = graphics->getTimer()->getTime()+2000;
-	defend_timer = graphics->getTimer()->getTime()+2000;
-	MOVEMENTSPEED = 20;
-	health		=	100;
+	swing_force		=	80;
+	state_			=	STATE_RUN;
+
+	stamina_timer	=	graphics->getTimer()->getTime();
+	timer			=	graphics->getTimer()->getTime()+1000;
+	attack_timer	=	graphics->getTimer()->getTime()+2000;
+	defend_timer	=	graphics->getTimer()->getTime()+2000;
+
+	MOVEMENTSPEED	=	20;
+	health			=	100;
+	stamina			=	100;
 	//create character
 	model = graphics->getSceneManager()->addAnimatedMeshSceneNode(graphics->getSceneManager()->getMesh("res/models/man.x"));
 	//model->setScale(vector3df(0.3,0.3,0.3));
@@ -46,7 +54,10 @@ graphics(graphics), world(world), slashRight_(false), slashLeft_(false), slashTo
 	model->setPosition(pos);
 	model->setRotation(rot);
 	//model->animateJoints();
+	model->addShadowVolumeSceneNode();
+	model->setMaterialFlag(video::EMF_NORMALIZE_NORMALS,true);
 	sword = graphics->getSceneManager()->addAnimatedMeshSceneNode(graphics->getSceneManager()->getMesh("res/models/sword.x"));
+	model->getMaterial(0).SpecularColor.set(0,0,0,0);
 
 	healthbar_ = new CHealthBar(graphics,model);
 
@@ -149,16 +160,25 @@ void CPerson::run(f32 frameDeltaTime)
 		f_rot.Z +=360;
 	this->setRForearmRotation(f_rot);
 
-
+	
 
 	if(health >0)
 	{
+		//including timers in one vector may help
 		if(timer < graphics->getTimer()->getTime())
 		{
-			swing_force = 10;
+			swing_force=20;
 			timer = graphics->getTimer()->getTime()+1000;
+
 		}
-		
+		if(getStaminaTime() < graphics->getTimer()->getTime())
+		{
+			if(getStamina() < 100)
+			{
+				setStamina(getStamina()+1);
+				setStaminaTime(graphics->getTimer()->getTime()+50);
+			}
+		}
 
 		if(getState()==STATE_RUN)
 		{
@@ -184,7 +204,7 @@ void CPerson::run(f32 frameDeltaTime)
 			}
 			if(getSlashLeft())
 			{
-				float turnrate = 7*getSwingForce() * frameDeltaTime;
+				float turnrate = 3*getSwingForce() * frameDeltaTime;
 				rotateRArmX(turnrate);
 				if(getRShoulderRotation().Z > 310)
 				{
@@ -194,7 +214,7 @@ void CPerson::run(f32 frameDeltaTime)
 			if(getSlashRight())
 			{
 
-				float turnrate = -6 *getSwingForce() * frameDeltaTime;
+				float turnrate = -3 *getSwingForce() * frameDeltaTime;
 				rotateRArmX(turnrate);
 				if(getRShoulderRotation().Z < 250)
 				{
@@ -203,7 +223,7 @@ void CPerson::run(f32 frameDeltaTime)
 			}
 			if(getSlashTop())
 			{
-				float turnrate = 5*getSwingForce() * frameDeltaTime;
+				float turnrate = 2*getSwingForce() * frameDeltaTime;
 				rotateRArmY(turnrate);
 
 			}
@@ -255,6 +275,7 @@ void CPerson::updateFingerPosition()
 	Parents.clear();
 }
 
+//mostly to keep bones in check
 void CPerson::updateHeadPosition()
 {
 	scene::IBoneSceneNode *Bone = model->getJointNode("Bip001Head");
@@ -374,8 +395,42 @@ void CPerson::rotateRArmX(float x)
 	{
 		vector3df rot = this->getRShoulderRotation();
 		//assign constraints
-
-		rot.Z += x;
+		int t = MAX_STAMINA / getStamina();
+		swing_force+=abs(x/5);
+		if(getIsPlayer())
+			x = x/t;
+		if(getSlashLeft() || getSlashRight() || getSlashTop())
+		{
+			if(stamina > 1)
+				stamina--;
+		}
+		if(x >0)
+		{
+			if(getSlashLeft())
+			{
+				rot.Z += x;
+			}
+			else if (getSlashRight())
+			{
+				
+				rot.Z += x/4;
+			}
+			else
+				rot.Z += x;
+		}
+		else
+		{
+			if(getSlashRight())
+			{
+				rot.Z += x;
+			}
+			else if (getSlashLeft())
+			{
+				rot.Z += x/4;
+			}
+			else
+				rot.Z += x;
+		}
 
 		if(rot.Z > 330)
 			rot.Z = 330;
@@ -391,7 +446,7 @@ void CPerson::rotateRArmY(float y)
 {
 	if(health > 0)
 	{
-
+		swing_force+=abs(y/5);
 		vector3df rot = this->getRShoulderRotation();
 
 
@@ -601,6 +656,17 @@ void CPerson::slashTop()
 	{
 		bone->setRotation(bone->getRotation()+vector3df(-1,0,0));
 	}
+}
+
+void CPerson::underBlock()
+{
+	//cool stuff goes here
+	scene::IBoneSceneNode *bone = model->getJointNode("Bip001RUpperArm");
+	scene::IBoneSceneNode *forearm = model->getJointNode("Bip001RForearm");
+	scene::IBoneSceneNode *hand = model->getJointNode("Bip001RHand");
+	scene::IBoneSceneNode *finger = model->getJointNode("Bip001RFinger");
+	this->setRFingerRotation(vector3df(90,0,0));
+	this->setRForearmRotation(vector3df(70,30,0));
 }
 
 void CPerson::setState(AI_STATE state)

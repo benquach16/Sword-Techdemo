@@ -43,6 +43,7 @@ using namespace scene;
 using namespace RakNet;
 
 
+//legacy, delete later
 #pragma pack(push, 1)
 struct NetworkData
 {
@@ -66,6 +67,7 @@ struct SObject
 	NewtonCollision *coll;
 };
 
+//state enum for finite state machine
 enum AI_STATE
 {
 	STATE_RUN,
@@ -74,6 +76,7 @@ enum AI_STATE
 	STATE_ATTACK,
 };
 
+//person class
 class CPerson
 {
 public:
@@ -123,6 +126,8 @@ public:
 	void moveRight(f32 frameDeltaTime);
 	void moveLegs(f32 frameDeltaTime);
 
+	//return functions
+	//get the position/rotation
 	vector3df getPosition();
 	vector3df getRotation();
 	//mostly self explanitory
@@ -168,10 +173,12 @@ public:
 	//Defunc
 	void readySword();
 	
+	//used to see if the person is a player
 	bool getIsPlayer()
 	{
 		return isplayer_;
 	}
+	//ensure that only one attack is possible per swing
 	bool getAttacked()
 	{
 		return attacked_already;
@@ -204,6 +211,7 @@ public:
 	void recoil();
 	//Slash right
 	void slashRight();
+	//boolean functions
 	void setSlashRight(bool right)
 	{
 		slashRight_ = right;
@@ -238,6 +246,15 @@ public:
 	{
 		swing_force = force;
 	}
+	void underBlock();
+	bool getUnderBlock()
+	{
+		return underBlock_; 
+	}
+	void setUnderBlock(bool block)
+	{
+		underBlock_ = block;
+	}
 	int getDefenseTime()
 	{
 		return defend_timer;
@@ -254,9 +271,25 @@ public:
 	{
 		attack_timer = time;
 	}
+	int getStamina()
+	{
+		return stamina;
+	}
+	void setStamina(int stamina)
+	{
+		this->stamina = stamina;
+	}
+	int getStaminaTime()
+	{
+		return stamina_timer;
+	}
+	void setStaminaTime(int stamina)
+	{
+		stamina_timer = stamina;
+	}
 
 	scene::IBoneSceneNode *getHeadBone();
-
+	//return functions for newton
 	SObject *getSObjectMesh()
 	{
 		return mesh_;
@@ -272,20 +305,26 @@ public:
 
 
 private:
+	//irrlicht
 	irr::IrrlichtDevice *graphics;
 	NewtonWorld *world;
 	scene::ISceneNode *placer;
 	CHealthBar *healthbar_;
 	bool isplayer_;
 
-
+	//health variable
 	int health;
+	//stamina variable
+	int stamina;
 	bool staggered;
 	int staggered_timer;
+	int stamina_timer;
+	int force_timer;
 	int attack_timer;
 	int defend_timer;
 	bool sword_attacked_already;
 	bool attacked_already;	//this is necessary because collision updates itself every frame. if the enemy keeps getting attacked every frame, then he will suffer ridiculous amounts of damage and lag
+	std::vector<int> timers;
 
 	vector3df last_position;
 
@@ -294,6 +333,7 @@ private:
 	bool slashLeft_;
 	bool slashRight_;
 	bool slashTop_;
+	bool underBlock_;
 
 	bool left_leg;
 	bool right_leg;

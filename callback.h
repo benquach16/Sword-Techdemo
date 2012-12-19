@@ -18,27 +18,31 @@
 //
 ///////////////////////////////////////////////////////////////////////
 
-#ifndef _HUD_H_
-#define _HUD_H_
+
+#ifndef _CALLBACK_H_
+#define _CALLBACK_H_
 
 #include "irrlicht.h"
-#include "player.h"
 
 using namespace irr;
-using namespace core;
-using namespace scene;
+using namespace video;
 using namespace gui;
+using namespace scene;
+using namespace core;
 
-class CHud
+//use this if i ever want to implement shaders
+
+class CCallback : public IShaderConstantSetCallback
 {
 public:
-	CHud(irr::IrrlichtDevice *graphics);
-	void run(CPlayer *player);
-	~CHud();
-
+	virtual void OnSetConstants(video::IMaterialRendererServices *services, s32 userData)
+	{
+		core::matrix4 projection = services->getVideoDriver()->getTransform(video::ETS_PROJECTION);
+		core::matrix4 world = services->getVideoDriver()->getTransform(video::ETS_WORLD);
+		core::matrix4 view = services->getVideoDriver()->getTransform(video::ETS_VIEW);
+		
+	}
 private:
-	irr::IrrlichtDevice *graphics;
-	dimension2d<f32> t;
 
 };
 
