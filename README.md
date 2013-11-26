@@ -1,1 +1,3 @@
-Licensed under the GPL
+Sword Demo
+=================
+basic sword game with multiplayer
